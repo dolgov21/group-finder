@@ -1,24 +1,29 @@
 repos:
-  - repo: local
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  - repo: https://github.com/psf/black
+    rev: 23.12.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
     hooks:
       - id: isort
-        name: isort
-        entry: isort --settings-file ./.isort.cfg .
-        args: ["--profile", "black"]
-        language: system
-        types: [python]
-        pass_filenames: false
 
-      - id: black
-        name: black
-        entry: black --config ./.black .
-        language: system
-        types: [python]
-        pass_filenames: false
-
+  - repo: https://github.com/PyCQA/flake8
+    rev: 6.1.0
+    hooks:
       - id: flake8
-        name: flake8
-        entry: flake8 --config .flake8 .
-        language: system
-        types: [python]
-        pass_filenames: false
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.9.0
+    hooks:
+      - id: mypy
+        args: ["--ignore-missing-imports"]
