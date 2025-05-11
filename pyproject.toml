@@ -10,6 +10,9 @@ python = "^3.12"
 fastapi = {extras = ["standart"], version = "^0.115.12"}
 uvicorn = {extras = ["stadart"], version = "^0.34.2"}
 environs = "^14.1.1"
+sqlalchemy = {extras = ["standart"], version = "^2.0.40"}
+alembic = "^1.15.2"
+pydantic-settings = "^2.9.1"
 
 
 [tool.poetry.group.dev.dependencies]
