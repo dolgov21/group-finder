@@ -1,4 +1,5 @@
 import uvicorn
+from config import settings
 from fastapi import FastAPI
 from loguru import logger
 
@@ -14,9 +15,9 @@ async def root() -> dict[str, str]:
 
 if __name__ == "__main__":
     logger.add(
-        "logs/logbook.log",
-        format="{time} {level} {module}:{line} {message}",
-        rotation="08:00",
+        settings.logger.logbook_path,
+        format=settings.logger.logs_format,
+        rotation=settings.logger.rotation_time,
         compression="zip",
         enqueue=True,
     )
@@ -24,4 +25,3 @@ if __name__ == "__main__":
 
     logger.debug("Uvicorn gets to work...")
     uvicorn.run("app.main:app")
-    logger.debug("Uvicorn got to work!")
