@@ -1,10 +1,21 @@
+from contextlib import asynccontextmanager
+
 import uvicorn
-from config import settings
 from fastapi import FastAPI
 from loguru import logger
+from setup_app import setup_logger, setup_scraper_scheduler
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.debug("Application startup...")
+    setup_logger()
+    setup_scraper_scheduler()
+    yield
+    logger.debug("Application down.")
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/")
@@ -14,14 +25,4 @@ async def root() -> dict[str, str]:
 
 
 if __name__ == "__main__":
-    logger.add(
-        settings.logger.logbook_path,
-        format=settings.logger.logs_format,
-        rotation=settings.logger.rotation_time,
-        compression="zip",
-        enqueue=True,
-    )
-    logger.debug("The logger has been configured")
-
-    logger.debug("Uvicorn gets to work...")
-    uvicorn.run("app.main:app")
+    uvicorn.run("main:app", app_dir="app")
