@@ -32,6 +32,7 @@ ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     'server.apps.gf',
+    'server.apps.shared',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
