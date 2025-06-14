@@ -7,7 +7,7 @@ class Institute(models.Model):
         max_length=255,
         unique=True
     )
-    institute_num = models.IntegerField(
+    institute_code = models.IntegerField(
         "Порядковый номер института",
         unique=True
     )
@@ -17,4 +17,4 @@ class Institute(models.Model):
         verbose_name_plural = "Институты"
 
     def __str__(self):
-        return f"Institute(id={self.id}, name={repr(self.name)}, institute_num={self.institute_num})"
+        return f"Institute(id={self.id}, name={repr(self.name)}, institute_code={self.institute_code})"
