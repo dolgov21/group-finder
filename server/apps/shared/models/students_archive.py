@@ -8,3 +8,6 @@ class StudentArchive(models.Model):
 
     class Meta:
         verbose_name = "Архив студентов"
+
+    def __str__(self):
+        return f"StudentArchive(institute={self.institute}, course={self.course}, group={self.group}, student={self.student})"

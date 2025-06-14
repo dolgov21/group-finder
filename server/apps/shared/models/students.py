@@ -14,3 +14,6 @@ class Student(models.Model):
     class Meta:
         verbose_name = "Студент"
         verbose_name_plural = "Студенты"
+
+    def __str__(self):
+        return f"Student(id={self.id}, student={repr(self.student)}, leader={repr(self.leader)}, institute={repr(self.institute)}, group={repr(self.group)})"
