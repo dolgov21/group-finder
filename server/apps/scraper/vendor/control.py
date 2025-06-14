@@ -9,5 +9,5 @@ def run():
     clear_all_tables()
 
     crawler = Crawler()
-    thread = Thread(target=crawler.get_data) 
+    thread = Thread(target=crawler.process_all)
     thread.start()

@@ -1,167 +1,167 @@
-from json import loads
-from pprint import pprint
+import logging
+import json
+from typing import List, Dict
 from collections import deque
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 import requests
 from time import sleep
 
+from ..exceptions import ExceptionLimitExceeded
 from server.apps.shared.models import Institute, Group, Student
 
 
-class Crawler:
-    CONNECTION_TIMEOUT = 5.5
-    MAX_POOL_SIZE = 5
-    TIME_DELTA = 1.0
-    MAX_EXCEPTION_COUNT = 5
-    RECURSION_LIMIT = 3
+logger = logging.getLogger("scraper")
 
-    KAI_INSTITUTES = {
-        1: "Институт авиации, наземного транспорта и энергетики",  # отделение СПО ТК 8
+
+class Crawler:
+    CONNECTION_TIMEOUT: float = 5.5
+    MAX_POOL_SIZE: int = 5
+    TIME_DELTA: float = 1.0
+    MAX_EXCEPTION_COUNT: int = 5
+    RECURSION_LIMIT: int = 3
+
+    INSTITUTES_MAP: Dict[int, str] = {
+        1: "Институт авиации, наземного транспорта и энергетики",
         2: "Факультет физико-математический",
         3: "Институт автоматики и электронного приборостроения",
-        4: "Институт компьютерных технологий и защиты информации",  # отделение СПО КИТ 4
+        4: "Институт компьютерных технологий и защиты информации",
         5: "Институт радиоэлектроники, фотоники и цифровых технологий",
         6: "Институт инженерной экономики и предпринимательства"
     }
 
     def __init__(self):
-        self.exception_counter = 0
-        self.recursions_count = 0
+        self.exception_counter: int = 0
+        self.recursion_count: int = 0
 
-    def __get_random_headers(self):
+    def _get_headers(self) -> Dict[str, str]:
         return {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'User-Agent': UserAgent().random,
             'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Accept-Encoding': 'gzip, deflate, br',
             'Cache-Control': 'max-age=0'
         }
 
-    def take_institutes(self):
-        for key, value in self.KAI_INSTITUTES.items():
-            obj = Institute.objects.create(name=value, institute_num=key)
-            print(obj)
+    def fetch_institutes(self) -> None:
+        """Создает записи институтов в базе данных"""
+        for code, name in self.INSTITUTES_MAP.items():
+            Institute.objects.create(name=name, institute_code=code)
+            logger.debug(f"Processed institute: {name}")
 
-    def take_groups(self) -> list[Group]:
-        url = "https://kai.ru/web/studentu/raspisanie1" 
-        params = {
+    def fetch_groups(self) -> List[Group]:
+        """Получает список учебных групп"""
+        url: str = "https://kai.ru/web/studentu/raspisanie1" 
+        params: Dict[str, str] = {
             "p_p_id": "pubStudentSchedule_WAR_publicStudentSchedule10",
-            "p_p_lifecycle": 2,
+            "p_p_lifecycle": "2",
             "p_p_state": "normal",
             "p_p_mode": "view",
             "p_p_resource_id": "getGroupsURL",
             "p_p_cacheability": "cacheLevelPage",
             "p_p_col_id": "column-1",
-            "p_p_col_count": 1
+            "p_p_col_count": "1"
         }
+        
         while True:
             try:
-                response = requests.get(url=url, params=params, headers=self.__get_random_headers())
+                response = requests.get(url, params=params, headers=self._get_headers(), timeout=self.CONNECTION_TIMEOUT)
                 response.raise_for_status()
-                groups_data = loads(response.text)[0:36:1]
+                logger.debug(f"Successful get groups list from: {response.url}")
 
-                for group_data in groups_data:
-                    institute_num = int(
-                        "1" if group_data['group'].startswith('8') else
-                        group_data['group'][0]
+                groups_data = json.loads(response.text)[:36]
+                groups = []
+                for group_info in groups_data:
+                    institute_code = 1 if group_info['group'].startswith('8') else int(group_info['group'][0])
+                    institute = Institute.objects.get(institute_code=institute_code)
+                    
+                    group, created = Group.objects.get_or_create(
+                        id=group_info['id'],
+                        defaults={
+                            'name': group_info['group'],
+                            'course': group_info['group'][1],
+                            'institute': institute
+                        }
                     )
-                    institute = Institute.objects.get(institute_num=institute_num)
-
-                    obj = Group.objects.create(
-                        id=group_data['id'],
-                        group=group_data['group'],
-                        course=group_data['group'][1],
-                        institute=institute
-                    )
-                    print(obj)
-                break
-            except requests.exceptions.Timeout:
-                print(f"Recursion parsing groups {self.recursions_count}: ")
-                if self.recursions_count > self.RECURSION_LIMIT:
-                    raise Exception(f"The recursion limit has been reached: {self.recursions_count}")
-                else:
-                    print("TimeoutError in get_groups query\n")
-                    sleep(self.CONNECTION_TIMEOUT)
-                    self.recursions_count += 1
-            except requests.exceptions.RequestException as e:
-                print(f"RequestException: {e}")
-                raise
-
-    def get_students_from_group(self, group: Group) -> list[Student]:
-        url = "https://kai.ru/infoClick/-/info/group" 
-        params = {
-            "id": group.id,
-            "name": group.group
-        }
-        students: list[Student] = list()
-        try:
-            response = requests.get(url=url, params=params, headers=self.__get_random_headers())
-            response.raise_for_status()
-            group_page = response.text
-            soup = BeautifulSoup(group_page, "html.parser")
-
-            table = soup.find("tbody")
-            if table is None:
-                alert = soup.find("div", class_="alert alert-info")
-                if alert is None:
-                    print("table tag is NoneType, why?", group.group)
-                    self.groups.append(group)
-                    self.exception_counter += 1
-                    print(list(self.groups)[-1])
-                    return []
-                else:
-                    print(group.group, "is", alert.text)
-                    return []
-
-            trows = table.find_all("tr")
-            for trow in trows:
-                tcolumns = trow.find_all("td")
-                student_column = tcolumns[1]
-                student = student_column.find(text=True, recursive=False).get_text(strip=True)
+                    if created:
+                        groups.append(group)
+                        logger.debug(f"Created group: {group}")
+                return groups
                 
-                leader = True if student_column.find("span") is not None else False
-                institute = Institute.objects.get(institute_num=group.institute.institute_num)
+            except requests.exceptions.Timeout:
+                self._handle_timeout(group, "fetch_groups")
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Request error: {e}")
+                raise e
 
-                obj = Student.objects.create(
-                    student=student,
-                    leader=leader,
-                    institute=institute,
-                    group=group
-                )
-                print(obj)
-        except requests.exceptions.Timeout:
-            self.exception_counter += 1
-            print(f"TimeoutError in group: id->{group.id} group->{group.group}")
-            print(f"groups in groups_queue: xxx")
-        except requests.exceptions.RequestException as e:
-            print(f"RequestException: {e}")
-        return students
-
-    def take_students(self):
-        groups = list(Group.objects.all())
-        for group in groups:
-            results = self.get_students_from_group(group=group)
-
-            if self.exception_counter > self.MAX_EXCEPTION_COUNT:
-                raise Exception("self.exception_counter more than the allowed limit!")
-
-            pprint(results)
-
-            students = list()  # [1, 2, 3, 2, 0, 23, 4]
-            for r_list in results:
-                if not r_list:
+    def fetch_students(self, group: Group):
+        """Получает список студентов для группы"""
+        url: str = "https://kai.ru/infoClick/-/info/group" 
+        params: Dict[str, str] = {"id": group.id, "group": group.name}
+        
+        try:
+            response = requests.get(url, params=params, headers=self._get_headers(), timeout=self.CONNECTION_TIMEOUT)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "html.parser")
+            
+            table = soup.find("tbody")
+            if not table:
+                logger.warning(f"No student data for group {group.name}")
+                return []
+            
+            students = []
+            for row in table.find_all("tr"):
+                columns = row.find_all("td")
+                if len(columns) < 2:
                     continue
-                for r in r_list:
-                    students.append(r)
+                
+                student_name = columns[1].get_text(strip=True)
+                is_leader = bool(columns[1].find("span"))
+                
+                student, created = Student.objects.get_or_create(
+                    id=None,
+                    defaults={
+                        'name': student_name,
+                        'is_leader': is_leader,
+                        'group': group,
+                        'institute': group.institute
+                    }
+                )
+                if created:
+                    students.append(student)
+                    logger.debug(f"Created student: {student} / {response.url}")
+            return students
+            
+        except requests.exceptions.Timeout:
+            self._handle_timeout(group, f"fetch_students group: {group.name}")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error fetching students for {group.name}: {e}")
 
-            print(f"\nreturned {len(students)} students")
-            print(f"groups in queue: xxx, "
-                  f"exception_counter={self.exception_counter}/{self.MAX_EXCEPTION_COUNT}")
+    def process_all(self) -> None:
+        """Основной метод обработки данных"""
+        self.fetch_institutes()
+        self.groups_queue = deque(self.fetch_groups())
+        
+        while len(self.groups_queue) != 0:
+            group = self.groups_queue.pop()
+            students = self.fetch_students(group)
 
+            if students is not None:
+                logger.info(f"Processed {len(students)} students for {group.name}")
+            
             sleep(self.TIME_DELTA)
+            
+            if self.exception_counter > self.MAX_EXCEPTION_COUNT:
+                logger.error("Maximum exception count reached!")
+                raise ExceptionLimitExceeded("Too many exceptions occurred during processing")
 
-    def get_data(self):
-        self.take_institutes()
-        self.take_groups()
-        self.take_students()
+    def _handle_timeout(self, group: Group, context: str) -> None:
+        """Обработка таймаутов"""
+        self.recursion_count += 1
+        self.groups_queue.appendleft(group)
+
+        logger.warning(f"Timeout in {context} (attempt {self.recursion_count})")
+        
+        if self.recursion_count > self.RECURSION_LIMIT:
+            raise RecursionError(f"Recursion limit reached in {context}")
+        
+        sleep(self.CONNECTION_TIMEOUT)

@@ -25,7 +25,44 @@ SECRET_KEY = 'django-insecure-%rla)v#!pdvt1(h%#u=5#zl5r@@x0ua4u824jmxcj+b!2^fg3$
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "scraper_console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+        "scraper_file": {
+            "level": "DEBUG",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": "./server/apps/scraper//logs/scraper_vendor.log",
+            "formatter": "verbose",
+            "maxBytes": 1024 * 1024 * 10,
+            "backupCount": 10,
+        },
+    },
+    "loggers": {
+        "scraper": {
+            "handlers": ["scraper_console", "scraper_file"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+}
+
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
