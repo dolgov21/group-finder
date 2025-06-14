@@ -17,6 +17,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
+from .apps.scraper.views import run_scraper
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('scraper/', run_scraper, name='run_scraper'),
 ]
