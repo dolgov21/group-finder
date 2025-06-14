@@ -2,7 +2,7 @@ from django.db import models
 
 
 class Group(models.Model):
-    group = models.CharField(
+    name = models.CharField(
         "Наименование группы",
         max_length=5,
         unique=True
@@ -15,4 +15,4 @@ class Group(models.Model):
         verbose_name_plural = "Группы"
 
     def __str__(self):
-        return f"Group(id={self.id}, group={self.group}, course={self.course}, institute={repr(self.institute)})"
+        return f"Group(id={self.id}, name={self.name}, course={self.course}, institute={repr(self.institute)})"
