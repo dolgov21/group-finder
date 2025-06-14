@@ -4,8 +4,7 @@ from django.db import models
 class Student(models.Model):
     name = models.CharField(
         "Наименование группы",
-        max_length=255,
-        unique=True
+        max_length=255
     )
     is_leader = models.BooleanField("Староста группы", default=False)
     institute = models.ForeignKey("Institute", on_delete=models.CASCADE)
