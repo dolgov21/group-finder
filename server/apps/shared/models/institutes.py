@@ -15,3 +15,6 @@ class Institute(models.Model):
     class Meta:
         verbose_name = "Институт"
         verbose_name_plural = "Институты"
+
+    def __str__(self):
+        return f"Institute(id={self.id}, name={repr(self.name)}, institute_num={self.institute_num})"

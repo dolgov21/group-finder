@@ -7,3 +7,6 @@ class ReportsArchive(models.Model):
 
     class Meta:
         verbose_name = "Архив отчётов"
+
+    def __str__(self):
+        return f"ReportsArchive(report_content={repr(self.report_content)}, report_json={repr(self.report_json)})"
