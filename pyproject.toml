@@ -12,6 +12,8 @@ pydantic = "^2.11.6"
 fake-useragent = "^2.2.0"
 bs4 = "^0.0.2"
 requests = "^2.32.4"
+mysqlclient = "^2.2.7"
+python-dotenv = "^1.1.0"
 
 
 [build-system]
